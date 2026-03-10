@@ -154,36 +154,31 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ---------- IoT Simulator (placeholder) ----------
+  # ---------- IoT Simulator ----------
   simulator:
     build:
-      context: ./simulator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: simulator/Dockerfile
     container_name: solar-simulator
     hostname: simulator
+    ports:
+      - "${SIMULATOR_METRICS_PORT:-8001}:8001"
     depends_on:
       rabbitmq:
-        condition: service_healthy
-      timescaledb:
         condition: service_healthy
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER:-iot_user}
       RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS:-changeme_rabbitmq}
-      POSTGRES_HOST: timescaledb
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-iot_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-iot_data}
     networks:
       - iot-network
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'print(\"ok\")'"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/')\""]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     restart: unless-stopped
 
 # ---------- Docker Networks ----------

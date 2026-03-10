@@ -1,0 +1,69 @@
+# ============================================================
+# Solar Pumps IoT Simulator - Configuration
+# ============================================================
+
+# --- RabbitMQ Connection ---
+rabbitmq:
+  host: ${RABBITMQ_HOST:-localhost}
+  port: ${RABBITMQ_PORT:-5672}
+  username: ${RABBITMQ_USER:-iot_user}
+  password: ${RABBITMQ_PASS:-changeme_rabbitmq}
+  exchange: "iot.data"
+  routing_key: "telemetry.raw"
+  heartbeat: 60
+  connection_timeout: 10
+
+# --- Prometheus Metrics ---
+prometheus:
+  port: 8001
+
+# --- Simulator Settings ---
+simulator:
+  telemetry_interval_sec: 5.0
+  failure_injection:
+    enabled: true
+    rate: 0.05  # 5% of messages will have faults injected
+
+# --- Pump Definitions ---
+pumps:
+  - pump_id: "PUMP_001"
+    location:
+      latitude: -1.286389
+      longitude: 36.817223
+      region: "Nairobi"
+    solar_panel:
+      peak_irradiance_w_m2: 1100.0
+      nominal_voltage_v: 48.0
+      max_current_a: 10.0
+    pump:
+      max_rpm: 3000
+      max_flow_rate_lpm: 150.0
+      max_discharge_pressure_bar: 4.0
+
+  - pump_id: "PUMP_002"
+    location:
+      latitude: -0.091702
+      longitude: 34.768017
+      region: "Kisumu"
+    solar_panel:
+      peak_irradiance_w_m2: 1050.0
+      nominal_voltage_v: 48.0
+      max_current_a: 9.5
+    pump:
+      max_rpm: 2800
+      max_flow_rate_lpm: 130.0
+      max_discharge_pressure_bar: 3.5
+
+  - pump_id: "PUMP_003"
+    location:
+      latitude: -4.043740
+      longitude: 39.668207
+      region: "Mombasa"
+    solar_panel:
+      peak_irradiance_w_m2: 1150.0
+      nominal_voltage_v: 48.0
+      max_current_a: 10.5
+    pump:
+      max_rpm: 3200
+      max_flow_rate_lpm: 160.0
+      max_discharge_pressure_bar: 4.5
