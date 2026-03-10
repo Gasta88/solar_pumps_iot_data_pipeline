@@ -28,7 +28,9 @@ class RabbitMQPublisher:
     def __init__(self, config: RabbitMQConfig) -> None:
         self._config = config
         self._connection: Optional[pika.BlockingConnection] = None
-        self._channel: Optional[pika.adapters.blocking_connection.BlockingChannel] = None
+        self._channel: Optional[pika.adapters.blocking_connection.BlockingChannel] = (
+            None
+        )
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -56,6 +58,15 @@ class RabbitMQPublisher:
                     exchange_type="topic",
                     durable=True,
                 )
+                self._channel.queue_declare(
+                    queue=self._config.queue,
+                    durable=True,
+                )
+                self._channel.queue_bind(
+                    queue=self._config.queue,
+                    exchange=self._config.exchange,
+                    routing_key=self._config.routing_key,
+                )
                 logger.info(
                     "Connected to RabbitMQ",
                     extra={
@@ -68,8 +79,7 @@ class RabbitMQPublisher:
             except (AMQPConnectionError, ConnectionError, OSError) as exc:
                 wait = self.BASE_BACKOFF_SEC * (2 ** (attempt - 1))
                 logger.warning(
-                    "RabbitMQ connection attempt %d/%d failed: %s  "
-                    "(retrying in %.1fs)",
+                    "RabbitMQ connection attempt %d/%d failed: %s  (retrying in %.1fs)",
                     attempt,
                     self.MAX_RETRIES,
                     exc,

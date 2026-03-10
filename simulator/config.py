@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 # Pydantic models
 # ---------------------------------------------------------------------------
 
+
 class RabbitMQConfig(BaseModel):
     """RabbitMQ connection settings."""
 
@@ -24,6 +25,7 @@ class RabbitMQConfig(BaseModel):
     password: str = "changeme_rabbitmq"
     exchange: str = "iot.data"
     routing_key: str = "telemetry.raw"
+    queue: str = "telemetry.raw"
     heartbeat: int = Field(default=60, ge=0)
     connection_timeout: int = Field(default=10, ge=1)
 
@@ -84,9 +86,7 @@ class PumpDefinition(BaseModel):
     @classmethod
     def pump_id_format(cls, v: str) -> str:
         if not re.match(r"^PUMP_\d{3,}$", v):
-            raise ValueError(
-                f"pump_id must match PUMP_NNN pattern, got '{v}'"
-            )
+            raise ValueError(f"pump_id must match PUMP_NNN pattern, got '{v}'")
         return v
 
 

@@ -9,6 +9,7 @@ rabbitmq:
   username: ${RABBITMQ_USER:-iot_user}
   password: ${RABBITMQ_PASS:-changeme_rabbitmq}
   exchange: "iot.data"
+  queue: "telemetry.raw"
   routing_key: "telemetry.raw"
   heartbeat: 60
   connection_timeout: 10

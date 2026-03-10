@@ -19,7 +19,7 @@ class TestRabbitMQPublisher:
     """All RabbitMQ interactions are mocked — no broker required."""
 
     @patch("simulator.publisher.pika.BlockingConnection")
-    def test_connect_declares_exchange(
+    def test_connect_declares_topology(
         self, mock_conn_cls: MagicMock, publisher: RabbitMQPublisher
     ) -> None:
         mock_conn = MagicMock()
@@ -33,6 +33,15 @@ class TestRabbitMQPublisher:
             exchange="iot.data",
             exchange_type="topic",
             durable=True,
+        )
+        mock_channel.queue_declare.assert_called_once_with(
+            queue="telemetry.raw",
+            durable=True,
+        )
+        mock_channel.queue_bind.assert_called_once_with(
+            queue="telemetry.raw",
+            exchange="iot.data",
+            routing_key="telemetry.raw",
         )
 
     @patch("simulator.publisher.pika.BlockingConnection")
