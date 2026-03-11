@@ -91,9 +91,26 @@ make nuke              Full cleanup (volumes + images)
 │   ├── grafana/
 │   │   ├── dashboards/          # Grafana dashboard JSON files
 │   │   └── provisioning/        # Auto-provisioning configs
-│   └── prometheus/
-│       └── prometheus.yml       # Prometheus scrape config
+│   ├── prometheus/
+│   │   └── prometheus.yml       # Prometheus scrape config
+│   └── timescaledb/
+│       └── 001_init_schema.sql  # TimescaleDB schema (raw_telemetry, aggregated_metrics)
 ├── data/                        # Persistent volume mount points (git-ignored)
+├── flink-jobs/
+│   └── telemetry-processor/     # Apache Flink streaming job (Java 11, Maven)
+│       ├── pom.xml
+│       └── src/
+│           ├── main/java/com/solarpumps/flink/
+│           │   ├── TelemetryPipelineJob.java       # Main job entry point
+│           │   ├── aggregation/                     # Windowed aggregation functions
+│           │   ├── metrics/                         # Prometheus metrics helpers
+│           │   ├── model/                           # POJOs (TelemetryMessage, DLQMessage, etc.)
+│           │   ├── serialization/                   # JSON (de)serializers for RabbitMQ
+│           │   ├── sink/                            # TimescaleDB JDBC sink factories
+│           │   └── validation/                      # TelemetryValidator (schema + range)
+│           └── test/java/com/solarpumps/flink/
+│               └── validation/
+│                   └── TelemetryValidatorTest.java  # 42 JUnit 5 tests
 ├── simulator/
 │   ├── Dockerfile               # Python 3.11 simulator image
 │   ├── __init__.py
@@ -120,10 +137,10 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 
 ## Roadmap
 
-- [ ] **Session 0** — Project bootstrap & Docker Compose skeleton *(this session)*
-- [ ] **Session 1** — IoT simulator with realistic telemetry generation
-- [ ] **Session 2** — RabbitMQ integration & message schema
-- [ ] **Session 3** — Flink stream processing jobs
+- [x] **Session 0** — Project bootstrap & Docker Compose skeleton
+- [x] **Session 1** — IoT simulator with realistic telemetry generation
+- [x] **Session 2** — Flink stream processing: validation, routing, TimescaleDB sinks, aggregations
+- [ ] **Session 3** — RabbitMQ integration & message schema
 - [ ] **Session 4** — TimescaleDB schema & continuous aggregates
 - [ ] **Session 5** — Grafana dashboards & alerting
 - [ ] **Session 6** — End-to-end testing & documentation

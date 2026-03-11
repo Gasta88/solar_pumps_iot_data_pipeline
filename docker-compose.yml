@@ -40,6 +40,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-iot_data}
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
+      - ./config/timescaledb/001_init_schema.sql:/docker-entrypoint-initdb.d/001_init_schema.sql:ro
     networks:
       - iot-network
     healthcheck:
@@ -117,8 +118,24 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.rpc.port: 6123
         jobmanager.memory.process.size: 1024m
+        metrics.reporters: prom
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER:-iot_user}
+      RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS:-changeme_rabbitmq}
+      TIMESCALEDB_JDBC_URL: jdbc:postgresql://timescaledb:5432/${POSTGRES_DB:-iot_data}
+      POSTGRES_USER: ${POSTGRES_USER:-iot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
     volumes:
       - flink_data:/opt/flink/data
+      - ./flink-jobs/telemetry-processor/target:/opt/flink/job-jars:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
     networks:
       - iot-network
     healthcheck:
@@ -141,6 +158,16 @@ services:
         jobmanager.rpc.port: 6123
         taskmanager.memory.process.size: 1024m
         taskmanager.numberOfTaskSlots: 2
+        metrics.reporters: prom
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER:-iot_user}
+      RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS:-changeme_rabbitmq}
+      TIMESCALEDB_JDBC_URL: jdbc:postgresql://timescaledb:5432/${POSTGRES_DB:-iot_data}
+      POSTGRES_USER: ${POSTGRES_USER:-iot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
     depends_on:
       flink-jobmanager:
         condition: service_healthy
