@@ -50,7 +50,7 @@ cd solar_pumps_iot_data_pipeline
 # 2. Create your environment file
 cp .env.example .env    # then edit .env with your own secrets
 
-# 3. Start all services
+# 3. Start all infrastructure services (detached)
 make up
 
 # 4. Check service status
@@ -62,6 +62,28 @@ make ps
 #    Flink     → http://localhost:8081
 #    Prometheus→ http://localhost:9090
 ```
+
+### Deploy the Flink streaming job
+
+Building and submitting the Flink jar is intentionally kept separate from
+`make up` so Docker users are not forced to run Maven every time containers
+are (re)started. Run the following commands in order whenever you change the
+Java job or want to redeploy it:
+
+```bash
+# Build the shaded jar locally (requires Maven + Java 11)
+make flink-build
+
+# Ensure the stack is running (only needed once per session)
+make up
+
+# Submit the freshly built jar to the JobManager
+make flink-submit
+```
+
+After submission, verify that the “Solar Pumps Telemetry Pipeline” job shows as
+RUNNING in the Flink UI (`http://localhost:8081`) and query TimescaleDB to see
+incoming data (`make shell-db`).
 
 ## Makefile Targets
 
@@ -134,16 +156,6 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `RABBITMQ_DEFAULT_PASS`   | `changeme_rabbitmq`  | RabbitMQ password              |
 | `GF_SECURITY_ADMIN_USER`  | `admin`              | Grafana admin username         |
 | `GF_SECURITY_ADMIN_PASSWORD`| `changeme_grafana` | Grafana admin password         |
-
-## Roadmap
-
-- [x] **Session 0** — Project bootstrap & Docker Compose skeleton
-- [x] **Session 1** — IoT simulator with realistic telemetry generation
-- [x] **Session 2** — Flink stream processing: validation, routing, TimescaleDB sinks, aggregations
-- [ ] **Session 3** — RabbitMQ integration & message schema
-- [ ] **Session 4** — TimescaleDB schema & continuous aggregates
-- [ ] **Session 5** — Grafana dashboards & alerting
-- [ ] **Session 6** — End-to-end testing & documentation
 
 ## License
 

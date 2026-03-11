@@ -95,17 +95,25 @@ public class TelemetryPipelineJob {
                 .build();
 
         // ----- Source: RabbitMQ telemetry.raw queue -----
-        DataStream<TelemetryMessage> rawStream = env
+        DataStream<DeserializationResult> rawStream = env
                 .addSource(new RMQSource<>(
                         rmqConfig,
                         "telemetry.raw",
-                        true,   // use correlation IDs for exactly-once
+                        false,  // simulator does not set correlation IDs
                         new TelemetryDeserializationSchema()))
                 .name("rabbitmq-source")
                 .uid("rabbitmq-source");
 
+        SingleOutputStreamOperator<TelemetryMessage> parsedStream = rawStream
+                .process(new DeserializationProcessFunction(DLQ_TAG))
+                .name("json-parser")
+                .uid("json-parser");
+
+        DataStream<DLQMessage> parseDlqStream =
+                parsedStream.getSideOutput(DLQ_TAG);
+
         // Assign event-time watermarks from the message timestamp
-        DataStream<TelemetryMessage> withWatermarks = rawStream
+        DataStream<TelemetryMessage> withWatermarks = parsedStream
                 .assignTimestampsAndWatermarks(
                         WatermarkStrategy.<TelemetryMessage>forBoundedOutOfOrderness(
                                         Duration.ofSeconds(10))
@@ -127,7 +135,11 @@ public class TelemetryPipelineJob {
                         .name("validator")
                         .uid("validator");
 
-        DataStream<DLQMessage> dlqStream = validStream.getSideOutput(DLQ_TAG);
+        DataStream<DLQMessage> validationDlqStream =
+                validStream.getSideOutput(DLQ_TAG);
+
+        DataStream<DLQMessage> dlqStream = parseDlqStream
+                .union(validationDlqStream);
 
         // ----- Sink 1: Valid -> TimescaleDB (raw_telemetry) -----
         validStream.addSink(
@@ -185,6 +197,44 @@ public class TelemetryPipelineJob {
     // ================================================================== //
     //  Inner classes
     // ================================================================== //
+
+    /**
+     * Routes successful deserializations to the main stream and sends malformed
+     * JSON payloads to the DLQ side output.
+     */
+    private static class DeserializationProcessFunction
+            extends org.apache.flink.streaming.api.functions.ProcessFunction<
+                    DeserializationResult, TelemetryMessage> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final OutputTag<DLQMessage> dlqTag;
+
+        DeserializationProcessFunction(OutputTag<DLQMessage> dlqTag) {
+            this.dlqTag = dlqTag;
+        }
+
+        @Override
+        public void processElement(
+                DeserializationResult result,
+                Context ctx,
+                Collector<TelemetryMessage> out) {
+            if (result == null) {
+                return;
+            }
+
+            if (result.isSuccess()) {
+                out.collect(result.getMessage());
+            } else {
+                DLQMessage dlq = new DLQMessage(
+                        result.getRawPayload(),
+                        "JSON parse error: " + result.getError(),
+                        "DESERIALIZATION_ERROR",
+                        "UNKNOWN");
+                ctx.output(dlqTag, dlq);
+            }
+        }
+    }
 
     /**
      * ProcessFunction that validates each telemetry message and routes it

@@ -45,3 +45,7 @@ Thumbs.db
 # Docker
 *.log
 .coverage
+
+# Testing
+.pytest_cache/
+.ruff_cache/
