@@ -4,20 +4,21 @@ Injects three categories of faults into telemetry payloads:
 
 1. **Out-of-range values** - e.g. negative flow rate, absurd RPM.
 2. **Missing required fields** - randomly drops a top-level key.
-3. **Malformed JSON** - inserts random characters into the serialised JSON.
+3. **Structural corruption** - replaces structured sections (e.g. ``location``)
+   with nonsense but still-valid JSON values.
 """
 
 from __future__ import annotations
 
 import json
 import random
-import string
 from typing import Any, Dict
 
 
 # ---------------------------------------------------------------------------
 # Fault strategies
 # ---------------------------------------------------------------------------
+
 
 def inject_out_of_range(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Mutate one or more numeric fields to physically impossible values."""
@@ -37,27 +38,74 @@ def inject_out_of_range(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def inject_missing_field(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Remove a randomly chosen required top-level field."""
-    removable = [k for k in ("solar_panel", "pump", "system", "environment") if k in payload]
+    removable = [
+        k for k in ("solar_panel", "pump", "system", "environment") if k in payload
+    ]
     if removable:
         key = random.choice(removable)
         del payload[key]
     return payload
 
 
-def inject_malformed_json(json_str: str) -> str:
-    """Insert random characters at random positions in the JSON string."""
-    chars = list(json_str)
-    num_insertions = random.randint(1, 5)
-    for _ in range(num_insertions):
-        pos = random.randint(0, len(chars) - 1)
-        junk = "".join(random.choices(string.ascii_letters + string.digits + "!@#$%", k=random.randint(1, 4)))
-        chars.insert(pos, junk)
-    return "".join(chars)
+def inject_structural_corruption(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Replace structured sections with incompatible JSON-friendly values."""
+
+    corruptors: list[tuple[str, Any]] = []
+    if "location" in payload:
+        corruptors.append(
+            (
+                "location",
+                random.choice(
+                    [
+                        "CORRUPTED_LOCATION",
+                        [42, "??"],
+                        {"lat": "NaN", "lon": None},
+                    ]
+                ),
+            )
+        )
+    if "solar_panel" in payload:
+        corruptors.append(
+            (
+                "solar_panel",
+                random.choice(
+                    [
+                        "NOT_AN_OBJECT",
+                        12345,
+                        ["voltage", "??"],
+                    ]
+                ),
+            )
+        )
+    if "pump" in payload:
+        corruptors.append(
+            (
+                "pump",
+                random.choice(
+                    [
+                        None,
+                        "PUMP_FAIL",
+                        [1, 2, 3],
+                    ]
+                ),
+            )
+        )
+    if "system" in payload:
+        corruptors.append(("system", "SYSTEM_CORRUPTED"))
+
+    if corruptors:
+        field, value = random.choice(corruptors)
+        payload[field] = value
+    else:
+        payload["garbled"] = "structural_fault"
+
+    return payload
 
 
 # ---------------------------------------------------------------------------
 # Public entry-point
 # ---------------------------------------------------------------------------
+
 
 class FaultInjector:
     """Probabilistically injects faults into telemetry payloads.
@@ -68,7 +116,7 @@ class FaultInjector:
         Probability (0..1) that *any given message* will be faulted.
     """
 
-    FAULT_TYPES = ("out_of_range", "missing_field", "malformed_json")
+    FAULT_TYPES = ("out_of_range", "missing_field", "structural_corruption")
 
     def __init__(self, rate: float = 0.05) -> None:
         self.rate = rate
@@ -81,7 +129,7 @@ class FaultInjector:
         tuple[str, str]
             A 2-tuple of ``(serialised_json, fault_type)`` where
             *fault_type* is one of ``"out_of_range"``, ``"missing_field"``,
-            ``"malformed_json"``, or ``"none"`` when no fault was injected.
+            ``"structural_corruption"``, or ``"none"`` when no fault was injected.
         """
         if random.random() >= self.rate:
             return json.dumps(payload), "none"
@@ -96,6 +144,5 @@ class FaultInjector:
             payload = inject_missing_field(payload)
             return json.dumps(payload), fault
 
-        # malformed_json
-        clean_json = json.dumps(payload)
-        return inject_malformed_json(clean_json), fault
+        payload = inject_structural_corruption(payload)
+        return json.dumps(payload), fault

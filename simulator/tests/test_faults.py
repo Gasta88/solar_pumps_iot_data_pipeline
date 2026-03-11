@@ -8,9 +8,9 @@ import pytest
 
 from simulator.faults import (
     FaultInjector,
-    inject_malformed_json,
     inject_missing_field,
     inject_out_of_range,
+    inject_structural_corruption,
 )
 
 
@@ -76,19 +76,19 @@ class TestInjectMissingField:
         assert "pump_id" in mutated
 
 
-class TestInjectMalformedJson:
-    def test_produces_invalid_json(self) -> None:
-        clean = json.dumps(_sample_payload())
-        corrupted = inject_malformed_json(clean)
-        # The corrupted string should fail to parse as valid JSON
-        # (in the vast majority of cases)
-        assert corrupted != clean
+class TestInjectStructuralCorruption:
+    def test_replaces_nested_object_with_invalid_type(self) -> None:
+        payload = _sample_payload()
+        mutated = inject_structural_corruption(payload)
+        # Still serialisable JSON
+        json.dumps(mutated)
 
-    def test_original_content_partially_present(self) -> None:
-        clean = json.dumps(_sample_payload())
-        corrupted = inject_malformed_json(clean)
-        # At least the pump_id should still be recognisable
-        assert "PUMP_001" in corrupted
+        # At least one structured section should now be non-dict
+        structured_fields = ["location", "solar_panel", "pump", "system"]
+        assert any(
+            field in mutated and not isinstance(mutated[field], dict)
+            for field in structured_fields
+        )
 
 
 class TestFaultInjector:
@@ -107,7 +107,11 @@ class TestFaultInjector:
             assert fault != "none"
             faults_seen.add(fault)
         # With 200 tries and 3 fault types, we should see all three
-        assert faults_seen == {"out_of_range", "missing_field", "malformed_json"}
+        assert faults_seen == {
+            "out_of_range",
+            "missing_field",
+            "structural_corruption",
+        }
 
     def test_returns_json_string(self) -> None:
         fi = FaultInjector(rate=0.0)

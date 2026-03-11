@@ -50,7 +50,7 @@ cd solar_pumps_iot_data_pipeline
 # 2. Create your environment file
 cp .env.example .env    # then edit .env with your own secrets
 
-# 3. Start all services
+# 3. Start all infrastructure services (detached)
 make up
 
 # 4. Check service status
@@ -62,6 +62,28 @@ make ps
 #    Flink     → http://localhost:8081
 #    Prometheus→ http://localhost:9090
 ```
+
+### Deploy the Flink streaming job
+
+Building and submitting the Flink jar is intentionally kept separate from
+`make up` so Docker users are not forced to run Maven every time containers
+are (re)started. Run the following commands in order whenever you change the
+Java job or want to redeploy it:
+
+```bash
+# Build the shaded jar locally (requires Maven + Java 11)
+make flink-build
+
+# Ensure the stack is running (only needed once per session)
+make up
+
+# Submit the freshly built jar to the JobManager
+make flink-submit
+```
+
+After submission, verify that the “Solar Pumps Telemetry Pipeline” job shows as
+RUNNING in the Flink UI (`http://localhost:8081`) and query TimescaleDB to see
+incoming data (`make shell-db`).
 
 ## Makefile Targets
 
@@ -91,9 +113,26 @@ make nuke              Full cleanup (volumes + images)
 │   ├── grafana/
 │   │   ├── dashboards/          # Grafana dashboard JSON files
 │   │   └── provisioning/        # Auto-provisioning configs
-│   └── prometheus/
-│       └── prometheus.yml       # Prometheus scrape config
+│   ├── prometheus/
+│   │   └── prometheus.yml       # Prometheus scrape config
+│   └── timescaledb/
+│       └── 001_init_schema.sql  # TimescaleDB schema (raw_telemetry, aggregated_metrics)
 ├── data/                        # Persistent volume mount points (git-ignored)
+├── flink-jobs/
+│   └── telemetry-processor/     # Apache Flink streaming job (Java 11, Maven)
+│       ├── pom.xml
+│       └── src/
+│           ├── main/java/com/solarpumps/flink/
+│           │   ├── TelemetryPipelineJob.java       # Main job entry point
+│           │   ├── aggregation/                     # Windowed aggregation functions
+│           │   ├── metrics/                         # Prometheus metrics helpers
+│           │   ├── model/                           # POJOs (TelemetryMessage, DLQMessage, etc.)
+│           │   ├── serialization/                   # JSON (de)serializers for RabbitMQ
+│           │   ├── sink/                            # TimescaleDB JDBC sink factories
+│           │   └── validation/                      # TelemetryValidator (schema + range)
+│           └── test/java/com/solarpumps/flink/
+│               └── validation/
+│                   └── TelemetryValidatorTest.java  # 42 JUnit 5 tests
 ├── simulator/
 │   ├── Dockerfile               # Python 3.11 simulator image
 │   ├── __init__.py
@@ -117,16 +156,6 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `RABBITMQ_DEFAULT_PASS`   | `changeme_rabbitmq`  | RabbitMQ password              |
 | `GF_SECURITY_ADMIN_USER`  | `admin`              | Grafana admin username         |
 | `GF_SECURITY_ADMIN_PASSWORD`| `changeme_grafana` | Grafana admin password         |
-
-## Roadmap
-
-- [ ] **Session 0** — Project bootstrap & Docker Compose skeleton *(this session)*
-- [ ] **Session 1** — IoT simulator with realistic telemetry generation
-- [ ] **Session 2** — RabbitMQ integration & message schema
-- [ ] **Session 3** — Flink stream processing jobs
-- [ ] **Session 4** — TimescaleDB schema & continuous aggregates
-- [ ] **Session 5** — Grafana dashboards & alerting
-- [ ] **Session 6** — End-to-end testing & documentation
 
 ## License
 

@@ -4,3 +4,13 @@ jobmanager.memory.process.size: 1024m
 taskmanager.memory.process.size: 1024m
 taskmanager.numberOfTaskSlots: 2
 parallelism.default: 1
+
+# Checkpointing
+execution.checkpointing.interval: 60000
+execution.checkpointing.min-pause: 30000
+execution.checkpointing.timeout: 120000
+
+# Prometheus metrics reporter
+metrics.reporters: prom
+metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+metrics.reporter.prom.port: 9249

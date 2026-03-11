@@ -18,11 +18,25 @@ build/
 .venv/
 venv/
 
+# Java / Maven
+flink-jobs/*/target/
+*.class
+*.jar
+*.war
+*.ear
+dependency-reduced-pom.xml
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
 
 # OS
 .DS_Store
@@ -31,3 +45,7 @@ Thumbs.db
 # Docker
 *.log
 .coverage
+
+# Testing
+.pytest_cache/
+.ruff_cache/
