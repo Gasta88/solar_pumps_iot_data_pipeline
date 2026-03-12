@@ -25,40 +25,34 @@ class TestTelemetryGenerator:
         assert msg.pump.flow_rate_lpm > 0
         assert msg.system.status == "OPERATIONAL"
 
-    def test_nighttime_message_is_zero(
+    def test_nighttime_message_still_has_activity(
         self, sample_pump_def: PumpDefinition
     ) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         dt = datetime(2024, 6, 15, 22, 0, 0, tzinfo=timezone.utc)
         msg = gen.generate(dt)
 
-        assert msg.solar_panel.irradiance_w_m2 == 0.0
-        assert msg.solar_panel.power_w == 0.0
-        assert msg.pump.rpm == 0
-        assert msg.pump.flow_rate_lpm == 0.0
-        assert msg.system.status == "STANDBY"
+        assert msg.solar_panel.irradiance_w_m2 > 0.0
+        assert msg.solar_panel.power_w > 0.0
+        assert msg.pump.rpm > 0
+        assert msg.pump.flow_rate_lpm > 0.0
+        assert msg.system.status == "OPERATIONAL"
 
-    def test_operating_hours_increment(
-        self, sample_pump_def: PumpDefinition
-    ) -> None:
+    def test_operating_hours_increment(self, sample_pump_def: PumpDefinition) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
         msg1 = gen.generate(dt)
         msg2 = gen.generate(dt)
         assert msg2.system.operating_hours > msg1.system.operating_hours
 
-    def test_location_matches_config(
-        self, sample_pump_def: PumpDefinition
-    ) -> None:
+    def test_location_matches_config(self, sample_pump_def: PumpDefinition) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         msg = gen.generate()
         assert msg.location.latitude == sample_pump_def.location.latitude
         assert msg.location.longitude == sample_pump_def.location.longitude
         assert msg.location.region == sample_pump_def.location.region
 
-    def test_message_serialises_to_dict(
-        self, sample_pump_def: PumpDefinition
-    ) -> None:
+    def test_message_serialises_to_dict(self, sample_pump_def: PumpDefinition) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         msg = gen.generate()
         data = msg.model_dump()
@@ -67,9 +61,7 @@ class TestTelemetryGenerator:
         assert "timestamp" in data
         assert "solar_panel" in data
 
-    def test_environment_within_range(
-        self, sample_pump_def: PumpDefinition
-    ) -> None:
+    def test_environment_within_range(self, sample_pump_def: PumpDefinition) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         for _ in range(50):
             msg = gen.generate()

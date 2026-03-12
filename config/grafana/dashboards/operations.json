@@ -1,0 +1,458 @@
+{
+  "uid": "operations",
+  "title": "Operations",
+  "description": "Fleet overview, real-time pump status, flow rates, error codes, and solar performance for field techs and ops managers",
+  "tags": ["operations", "fleet", "timescaledb"],
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Fleet Overview",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "title": "Total Pumps Online",
+      "description": "Distinct pumps that have reported data in the last 5 minutes",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  COUNT(DISTINCT pump_id) AS \"Pumps Online\"\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '5 minutes';",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Total Water Delivered Today",
+      "description": "Estimated total water delivered today (sum of flow rate readings × telemetry interval)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(SUM(flow_rate_lpm * 5.0 / 60.0)::numeric, 1) AS \"Litres Today\"\nFROM raw_telemetry\nWHERE time > date_trunc('day', NOW());",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Avg Solar Power Generation",
+      "description": "Average solar power (W) across all pumps in the last 5 minutes",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "dark-red", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "green", "value": 150 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "watt",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(AVG(solar_power_w)::numeric, 1) AS \"Avg Solar Power\"\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '5 minutes';",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Real-Time Pump Status Map",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "collapsed": false
+    },
+    {
+      "id": 6,
+      "title": "Pump Locations with Status",
+      "description": "Latest pump locations colour-coded by status. Uses Geomap panel — green = running, red = error, yellow = warning.",
+      "type": "geomap",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "view": {
+          "id": "coords",
+          "lat": -1.5,
+          "lon": 37,
+          "zoom": 6
+        },
+        "basemap": {
+          "type": "default",
+          "name": "OpenStreetMap"
+        },
+        "layers": [
+          {
+            "type": "markers",
+            "name": "Pump Status",
+            "config": {
+              "showLegend": true,
+              "style": {
+                "size": {
+                  "fixed": 10
+                },
+                "color": {
+                  "field": "error_code",
+                  "fixed": "green"
+                },
+                "symbol": {
+                  "fixed": "img/icons/marker/circle.svg"
+                }
+              }
+            },
+            "location": {
+              "mode": "coords",
+              "latitude": "latitude",
+              "longitude": "longitude"
+            },
+            "tooltip": true
+          }
+        ],
+        "tooltip": { "mode": "details" },
+        "controls": {
+          "showZoom": true,
+          "mouseWheelZoom": true,
+          "showAttribution": true
+        }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT DISTINCT ON (pump_id)\n  pump_id,\n  latitude,\n  longitude,\n  region,\n  status,\n  error_code,\n  flow_rate_lpm,\n  solar_power_w,\n  time\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '5 minutes'\nORDER BY pump_id, time DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Flow Rate Time Series",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "collapsed": false
+    },
+    {
+      "id": 8,
+      "title": "Avg Flow Rate per Pump (Last 1h)",
+      "description": "Line chart showing the average flow rate per pump, bucketed per minute",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 0,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "displayName": "${__field.labels.pump_id}"
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  time_bucket('1 minute', time) AS time,\n  pump_id,\n  AVG(flow_rate_lpm) AS \"flow_rate\"\nFROM raw_telemetry\nWHERE $__timeFilter(time)\nGROUP BY 1, pump_id\nORDER BY 1;",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Total Fleet Flow Rate (Stacked Area)",
+      "description": "Stacked area chart showing total fleet flow rate, broken down by pump",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "displayName": "${__field.labels.pump_id}"
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  time_bucket('1 minute', time) AS time,\n  pump_id,\n  SUM(flow_rate_lpm) AS \"flow_rate\"\nFROM raw_telemetry\nWHERE $__timeFilter(time)\nGROUP BY 1, pump_id\nORDER BY 1;",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Error Code Distribution",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "id": 11,
+      "title": "Error Code Distribution (Last 15 min)",
+      "description": "Bar chart showing the count of pumps grouped by error_code in the last 15 minutes",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "showValue": "auto",
+        "groupWidth": 0.7,
+        "barWidth": 0.7,
+        "stacking": "none",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  CASE\n    WHEN error_code = 0 THEN 'No Error (0)'\n    ELSE 'Error ' || error_code::text\n  END AS \"error_code\",\n  COUNT(*) AS \"count\"\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '15 minutes'\nGROUP BY error_code\nORDER BY error_code;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Solar Performance",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 12, "x": 12, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "id": 13,
+      "title": "Solar Irradiance & Power (Last 1h)",
+      "description": "Average solar irradiance (W/m²) and solar power (W) across all pumps",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Avg Irradiance (W/m²)" },
+            "properties": [
+              { "id": "unit", "value": "watt" },
+              { "id": "custom.axisPlacement", "value": "left" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Avg Solar Power (W)" },
+            "properties": [
+              { "id": "unit", "value": "watt" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  time_bucket('1 minute', time) AS time,\n  AVG(irradiance_w_m2) AS \"Avg Irradiance (W/m²)\",\n  AVG(solar_power_w) AS \"Avg Solar Power (W)\"\nFROM raw_telemetry\nWHERE $__timeFilter(time)\nGROUP BY 1\nORDER BY 1;",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Underperforming Pumps",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "collapsed": false
+    },
+    {
+      "id": 15,
+      "title": "Top 10 Underperforming Pumps (Last 15 min)",
+      "description": "Pumps with the lowest average flow rate — possible failures or degraded performance",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "avg_flow_rate" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "decimals", "value": 2 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": 20 },
+                    { "color": "green", "value": 50 }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "readings" },
+            "properties": [
+              { "id": "unit", "value": "short" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "avg_flow_rate", "desc": false }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  pump_id,\n  ROUND(AVG(flow_rate_lpm)::numeric, 2) AS avg_flow_rate,\n  ROUND(AVG(solar_power_w)::numeric, 2) AS avg_solar_power,\n  MAX(error_code) AS last_error_code,\n  COUNT(*) AS readings,\n  MAX(region) AS region\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '15 minutes'\nGROUP BY pump_id\nORDER BY avg_flow_rate ASC\nLIMIT 10;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "links": [
+    { "title": "System Health Dashboard", "url": "/d/system-health/system-health", "type": "link", "icon": "dashboard" },
+    { "title": "Data Quality Dashboard", "url": "/d/data-quality/data-quality", "type": "link", "icon": "dashboard" }
+  ]
+}

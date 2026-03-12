@@ -1,0 +1,428 @@
+{
+  "uid": "data-quality",
+  "title": "Data Quality",
+  "description": "DLQ monitoring, validation success rate, error breakdowns, data freshness, and DLQ message samples",
+  "tags": ["data-quality", "dlq", "validation"],
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Validation Overview",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "title": "Validation Success Rate",
+      "description": "Percentage of messages that passed validation (valid / total processed)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.95 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  CASE\n    WHEN (SELECT COUNT(*) FROM raw_telemetry WHERE time > NOW() - INTERVAL '1 hour') +\n         (SELECT COUNT(*) FROM dlq_records WHERE error_timestamp > NOW() - INTERVAL '1 hour') = 0\n    THEN 1.0\n    ELSE\n      (SELECT COUNT(*) FROM raw_telemetry WHERE time > NOW() - INTERVAL '1 hour')::float /\n      NULLIF(\n        (SELECT COUNT(*) FROM raw_telemetry WHERE time > NOW() - INTERVAL '1 hour') +\n        (SELECT COUNT(*) FROM dlq_records WHERE error_timestamp > NOW() - INTERVAL '1 hour'),\n        0\n      )\n  END AS \"success_rate\";",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Valid Messages (1h)",
+      "description": "Total valid messages in the last hour",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  COUNT(*) AS \"Valid\"\nFROM raw_telemetry\nWHERE time > NOW() - INTERVAL '1 hour';",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "DLQ Messages (1h)",
+      "description": "Total messages routed to the dead-letter queue in the last hour",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 50 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  NOW() AS time,\n  COUNT(*) AS \"DLQ\"\nFROM dlq_records\nWHERE error_timestamp > NOW() - INTERVAL '1 hour';",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "DLQ Message Rate (Prometheus)",
+      "description": "Rate of messages arriving in the RabbitMQ DLQ queue per minute (from Prometheus)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "rate(rabbitmq_queue_messages_published_total{queue=\"dlq.invalid\"}[1m]) * 60",
+          "legendFormat": "DLQ msgs/min",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(rabbitmq_queue_messages_published_total{queue=\"dlq.invalid\"}[1m])",
+          "legendFormat": "DLQ increase/min",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "DLQ Rate & Breakdown",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "collapsed": false
+    },
+    {
+      "id": 7,
+      "title": "DLQ Messages per Minute (TimescaleDB)",
+      "description": "Count of invalid messages per minute from the dlq_records table",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "gradientMode": "scheme"
+          },
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  time_bucket('1 minute', error_timestamp) AS time,\n  COUNT(*) AS \"DLQ Messages\"\nFROM dlq_records\nWHERE $__timeFilter(error_timestamp)\nGROUP BY 1\nORDER BY 1;",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Error Reasons Breakdown",
+      "description": "Pie chart showing the distribution of validation error types in the last hour",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "pieType": "donut",
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value", "percent"]
+        },
+        "displayLabels": ["name", "percent"]
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  error_type AS \"metric\",\n  COUNT(*) AS \"value\"\nFROM dlq_records\nWHERE error_timestamp > NOW() - INTERVAL '1 hour'\nGROUP BY error_type\nORDER BY \"value\" DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Data Freshness & Offline Detection",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "title": "Data Freshness — Time Since Last Message per Pump",
+      "description": "Shows how many seconds ago each pump last reported. High values indicate offline or disconnected pumps.",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "seconds_since_last" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "decimals", "value": 0 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 30 },
+                    { "color": "red", "value": 120 }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_seen" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "seconds_since_last", "desc": true }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  pump_id,\n  MAX(time) AS last_seen,\n  EXTRACT(EPOCH FROM (NOW() - MAX(time)))::integer AS seconds_since_last,\n  MAX(region) AS region,\n  MAX(status) AS last_status\nFROM raw_telemetry\nGROUP BY pump_id\nORDER BY seconds_since_last DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "DLQ Message Samples",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "collapsed": false
+    },
+    {
+      "id": 12,
+      "title": "Last 10 DLQ Messages",
+      "description": "Most recent messages routed to the dead-letter queue, showing error reasons for debugging",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": true,
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error_timestamp" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "error_type" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-text" },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "SCHEMA": { "color": "orange", "text": "SCHEMA" }, "RANGE": { "color": "yellow", "text": "RANGE" }, "TIMESTAMP": { "color": "purple", "text": "TIMESTAMP" }, "DESERIALIZATION_ERROR": { "color": "red", "text": "DESER" }, "PROCESSING_ERROR": { "color": "dark-red", "text": "PROC" } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "original_payload" },
+            "properties": [
+              { "id": "custom.width", "value": 400 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "error_timestamp", "desc": true }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  error_timestamp,\n  pump_id,\n  error_type,\n  error_reason,\n  LEFT(original_payload, 500) AS original_payload\nFROM dlq_records\nORDER BY error_timestamp DESC\nLIMIT 10;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Error Reason Detail Breakdown (1h)",
+      "description": "Detailed breakdown of specific error reasons (not just types)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "count" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "custom.displayMode", "value": "color-background" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 5 },
+                    { "color": "red", "value": 20 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "count", "desc": true }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  error_reason,\n  error_type,\n  COUNT(*) AS count\nFROM dlq_records\nWHERE error_timestamp > NOW() - INTERVAL '1 hour'\nGROUP BY error_reason, error_type\nORDER BY count DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "links": [
+    { "title": "System Health Dashboard", "url": "/d/system-health/system-health", "type": "link", "icon": "dashboard" },
+    { "title": "Operations Dashboard", "url": "/d/operations/operations", "type": "link", "icon": "dashboard" }
+  ]
+}

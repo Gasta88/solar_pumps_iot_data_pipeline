@@ -163,6 +163,13 @@ public class TelemetryPipelineJob {
                 .name("rabbitmq-dlq-sink")
                 .uid("rabbitmq-dlq-sink");
 
+        // ----- Sink 4: Invalid -> TimescaleDB dlq_records (for Grafana) -----
+        dlqStream.addSink(
+                        com.solarpumps.flink.sink.DlqSinkFactory.build(
+                                jdbcUrl, dbUser, dbPass))
+                .name("timescaledb-dlq-sink")
+                .uid("timescaledb-dlq-sink");
+
         // ----- Aggregation: 1-minute tumbling window -----
         DataStream<AggregatedMetric> agg1min = validStream
                 .keyBy(TelemetryMessage::getPumpId)

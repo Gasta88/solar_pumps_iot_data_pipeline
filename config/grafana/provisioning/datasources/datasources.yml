@@ -4,6 +4,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
+    uid: prometheus
     url: http://prometheus:9090
     isDefault: true
     editable: true
@@ -11,11 +12,12 @@ datasources:
   - name: TimescaleDB
     type: postgres
     access: proxy
+    uid: timescaledb
     url: timescaledb:5432
     database: iot_data
-    user: ${POSTGRES_USER}
+    user: $POSTGRES_USER
     secureJsonData:
-      password: ${POSTGRES_PASSWORD}
+      password: $POSTGRES_PASSWORD
     jsonData:
       sslmode: disable
       postgresVersion: 1500
