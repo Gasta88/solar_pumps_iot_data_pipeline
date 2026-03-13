@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from simulator.faults import (
     FaultInjector,
     inject_missing_field,

@@ -1,8 +1,3 @@
-##############################################################################
-# Solar Pumps IoT Data Pipeline - Docker Compose
-# All infrastructure services for the real-time IoT data pipeline.
-##############################################################################
-
 services:
   # ---------- Message Broker ----------
   rabbitmq:

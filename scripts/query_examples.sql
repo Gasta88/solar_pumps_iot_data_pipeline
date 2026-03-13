@@ -14,8 +14,8 @@ WITH delivery AS (
     WHERE time >= NOW() - INTERVAL '24 hours'
 )
 SELECT pump_id,
-       ROUND(SUM(liters_delivered), 2) AS total_liters,
-       ROUND(SUM(liters_delivered) / 1000.0, 2) AS cubic_meters
+       ROUND(SUM(liters_delivered)::numeric, 2) AS total_liters,
+       ROUND((SUM(liters_delivered) / 1000.0)::numeric, 2) AS cubic_meters
 FROM delivery
 GROUP BY pump_id
 ORDER BY total_liters DESC
@@ -23,20 +23,30 @@ LIMIT 10;
 
 \echo ''
 \echo '2) Pumps that have been offline (no telemetry) for more than 5 minutes'
-SELECT pump_id,
-       MAX(time) AS last_seen,
-       NOW() - MAX(time) AS inactivity
-FROM raw_telemetry
-GROUP BY pump_id
-HAVING MAX(time) < NOW() - INTERVAL '5 minutes'
+WITH reference AS (
+    SELECT COALESCE(GREATEST(MAX(time), NOW()), NOW()) AS ref_time
+    FROM raw_telemetry
+),
+last_seen AS (
+    SELECT pump_id,
+           MAX(time) AS last_seen
+    FROM raw_telemetry
+    GROUP BY pump_id
+)
+SELECT ls.pump_id,
+       ls.last_seen,
+       reference.ref_time - ls.last_seen AS inactivity
+FROM last_seen AS ls
+CROSS JOIN reference
+WHERE reference.ref_time - ls.last_seen > INTERVAL '5 minutes'
 ORDER BY inactivity DESC;
 
 \echo ''
 \echo '3) Hourly solar power trend (average and peak) for the last 48h'
 SELECT DATE_TRUNC('hour', time) AS hour_bucket,
        pump_id,
-       ROUND(AVG(solar_power_w), 2) AS avg_power_w,
-       ROUND(MAX(solar_power_w), 2) AS peak_power_w
+       ROUND(AVG(solar_power_w)::numeric, 2) AS avg_power_w,
+       ROUND(MAX(solar_power_w)::numeric, 2) AS peak_power_w
 FROM raw_telemetry
 WHERE time >= NOW() - INTERVAL '48 hours'
 GROUP BY hour_bucket, pump_id
@@ -47,7 +57,7 @@ ORDER BY hour_bucket, pump_id;
 SELECT error_code,
        status,
        COUNT(*) AS occurrences,
-       ARRAY_AGG(DISTINCT pump_id ORDER BY pump_id)[:5] AS sample_pumps,
+       (ARRAY_AGG(DISTINCT pump_id ORDER BY pump_id))[1:5] AS sample_pumps,
        MAX(time) AS last_seen
 FROM raw_telemetry
 WHERE error_code <> 0 OR status <> 'OPERATIONAL'

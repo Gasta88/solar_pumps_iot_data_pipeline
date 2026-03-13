@@ -5,14 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from simulator.models import (
-    EnvironmentTelemetry,
-    LocationTelemetry,
-    PumpTelemetry,
-    SolarPanelTelemetry,
-    SystemTelemetry,
-    TelemetryMessage,
-)
+from simulator.models import TelemetryMessage
 
 
 def _make_message(**overrides: object) -> TelemetryMessage:
