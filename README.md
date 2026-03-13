@@ -1,6 +1,7 @@
 # Solar Pumps IoT Data Pipeline
 
-Real-time reference implementation for ingesting solar-powered water pump telemetry, validating it with Apache Flink, persisting to TimescaleDB, and visualizing performance in Grafana. Everything runs via Docker Compose for a frictionless developer experience.
+Real-time data pipeline for ingesting solar-powered water pump telemetry, validating it with Apache Flink, persisting to TimescaleDB, and visualizing performance in Grafana. 
+Everything runs via Docker Compose.
 
 ## Architecture Overview
 
@@ -16,15 +17,22 @@ flowchart LR
 
 Printable diagrams live under `docs/diagrams/` and the full breakdown is in `docs/architecture.md`.
 
-## Quick Start (3 commands)
+## Quick Start
 
 ```bash
 cp .env.example .env
-docker compose pull
+make build
 make up
 ```
 
-After `make up` finishes, Grafana (http://localhost:3000) and the rest of the stack come online with sample simulator data.
+After `make up` finishes, Grafana (http://localhost:3000) and the rest of the stack come online.
+
+Simulation can be started with the following commands:
+
+```bash
+make flink-build
+make flink-submit
+```
 
 ## Detailed Setup
 
@@ -36,13 +44,13 @@ After `make up` finishes, Grafana (http://localhost:3000) and the rest of the st
 
 ## Dashboards & Service Access
 
-| Service | URL | Default credentials | What to check |
-| --- | --- | --- | --- |
-| Grafana | http://localhost:3000 | `admin` / `changeme_grafana` | Pump KPIs, DLQ alerts, solar trends, exporter health. |
-| RabbitMQ | http://localhost:15672 | `iot_user` / `changeme_rabbitmq` | Queue depth (`telemetry.raw`), connection status, publishers. |
-| Flink UI | http://localhost:8081 | n/a | Job metrics, checkpoint history, task throughput. |
-| Prometheus | http://localhost:9090 | n/a | Raw metrics (Flink, RabbitMQ, TimescaleDB exporters). |
-| TimescaleDB | `psql postgresql://iot_user:changeme_postgres@localhost:5432/iot_data` | change via `.env` | Run SQL, inspect hypertables (`raw_telemetry`, `aggregated_metrics`, `dlq_records`). |
+| Service | URL |  What to check |
+| --- | --- | --- |
+| Grafana | http://localhost:3000 |  Pump KPIs, DLQ alerts, solar trends, exporter health. |
+| RabbitMQ | http://localhost:15672 |  Queue depth (`telemetry.raw`), connection status, publishers. |
+| Flink UI | http://localhost:8081 | Job metrics, checkpoint history, task throughput. |
+| Prometheus | http://localhost:9090 | Raw metrics (Flink, RabbitMQ, TimescaleDB exporters). |
+| TimescaleDB | change via `.env` | Run SQL, inspect hypertables (`raw_telemetry`, `aggregated_metrics`, `dlq_records`). |
 
 ## Triggering Failures for Demos
 
@@ -91,6 +99,3 @@ psql "postgresql://iot_user:changeme_postgres@localhost:5432/iot_data" -f script
 - `config/timescaledb/001_init_schema.sql` – Authoritative database DDL.
 - `Makefile` – All developer convenience targets (`make help`).
 
-## License
-
-MIT
