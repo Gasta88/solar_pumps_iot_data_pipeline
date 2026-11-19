@@ -38,6 +38,9 @@ class PumpWorker(threading.Thread):
         Optional :class:`FaultInjector` instance.
     stop_event:
         A :class:`threading.Event` signalled on graceful shutdown.
+    always_daytime:
+        Passed to :class:`TelemetryGenerator`; when True the solar clock is
+        wrapped into the 06:00-18:00 window so demos never go dark.
     """
 
     def __init__(
@@ -47,6 +50,7 @@ class PumpWorker(threading.Thread):
         interval_sec: float,
         fault_injector: FaultInjector | None,
         stop_event: threading.Event,
+        always_daytime: bool = True,
     ) -> None:
         super().__init__(name=f"worker-{pump_def.pump_id}", daemon=True)
         self._pump_def = pump_def
@@ -55,7 +59,9 @@ class PumpWorker(threading.Thread):
         self._fault_injector = fault_injector
         self._stop_event = stop_event
 
-        self._generator = TelemetryGenerator(pump_def)
+        self._generator = TelemetryGenerator(
+            pump_def, always_daytime=always_daytime
+        )
         self._publisher: RabbitMQPublisher | None = None
 
     # ------------------------------------------------------------------

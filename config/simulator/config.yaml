@@ -21,6 +21,9 @@ prometheus:
 # --- Simulator Settings ---
 simulator:
   telemetry_interval_sec: 5.0
+  # Wrap night hours into the 06:00-18:00 window so demos always show
+  # daytime production. Set to false for a real day/night cycle.
+  always_daytime: true
   failure_injection:
     enabled: true
     rate: 0.05  # 5% of messages will have faults injected

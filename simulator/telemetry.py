@@ -23,8 +23,11 @@ class TelemetryGenerator:
     It tracks cumulative operating hours so successive readings are coherent.
     """
 
-    def __init__(self, pump_def: PumpDefinition) -> None:
+    def __init__(
+        self, pump_def: PumpDefinition, *, always_daytime: bool = True
+    ) -> None:
         self._def = pump_def
+        self._always_daytime = always_daytime
         self._operating_hours: float = round(random.uniform(100, 5000), 1)
 
     # ------------------------------------------------------------------
@@ -37,7 +40,9 @@ class TelemetryGenerator:
             dt = datetime.now(timezone.utc)
 
         irradiance = solar_irradiance(
-            dt, peak_irradiance=self._def.solar_panel.peak_irradiance_w_m2
+            dt,
+            peak_irradiance=self._def.solar_panel.peak_irradiance_w_m2,
+            always_daytime=self._always_daytime,
         )
         is_daytime = irradiance > 0
 

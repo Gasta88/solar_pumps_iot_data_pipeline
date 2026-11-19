@@ -28,6 +28,7 @@ class TestLoadConfig:
         assert isinstance(cfg, AppConfig)
         assert cfg.rabbitmq.host == "localhost"
         assert cfg.prometheus.port == 8001
+        assert cfg.simulator.always_daytime is True
         assert len(cfg.pumps) == 1
         assert cfg.pumps[0].pump_id == "PUMP_001"
 
@@ -60,6 +61,17 @@ class TestLoadConfig:
         p.write_text(yaml_text)
         cfg = load_config(p)
         assert cfg.rabbitmq.host == "fallback_host"
+
+    def test_always_daytime_defaults_to_true(self, tmp_path: Path) -> None:
+        yaml_text = textwrap.dedent("""\
+            pumps:
+              - pump_id: "PUMP_001"
+                location: {latitude: 0, longitude: 0, region: test}
+        """)
+        p = tmp_path / "default.yaml"
+        p.write_text(yaml_text)
+        cfg = load_config(p)
+        assert cfg.simulator.always_daytime is True
 
 
 # ---------------------------------------------------------------------------

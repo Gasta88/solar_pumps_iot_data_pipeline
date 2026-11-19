@@ -103,6 +103,7 @@ def main(argv: List[str] | None = None) -> None:
             interval_sec=config.simulator.telemetry_interval_sec,
             fault_injector=fault_injector,
             stop_event=stop_event,
+            always_daytime=config.simulator.always_daytime,
         )
         worker.start()
         workers.append(worker)

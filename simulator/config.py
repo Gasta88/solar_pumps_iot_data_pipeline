@@ -47,6 +47,7 @@ class SimulatorConfig(BaseModel):
     """Top-level simulator tuning knobs."""
 
     telemetry_interval_sec: float = Field(default=5.0, gt=0)
+    always_daytime: bool = True
     failure_injection: FailureInjectionConfig = FailureInjectionConfig()
 
 

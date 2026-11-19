@@ -1,7 +1,13 @@
 # Solar Pumps IoT Data Pipeline
 
-Real-time data pipeline for ingesting solar-powered water pump telemetry, validating it with Apache Flink, persisting to TimescaleDB, and visualizing performance in Grafana. 
-Everything runs via Docker Compose.
+[![CI](https://github.com/Gasta88/solar_pumps_iot_data_pipeline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Gasta88/solar_pumps_iot_data_pipeline/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Real-time data pipeline for ingesting solar-powered water pump telemetry, validating it with Apache Flink, persisting to TimescaleDB, and visualizing performance in Grafana. Everything runs via Docker Compose.
+
+CI runs the Python and JUnit suites plus a Compose smoke job that boots RabbitMQ and TimescaleDB and asserts the TimescaleDB hypertables. A manual `E2E Pipeline` workflow exercises the full telemetry path.
+
+![System overview](docs/diagrams/system_overview.png)
 
 ## Architecture Overview
 
@@ -16,6 +22,8 @@ flowchart LR
 ```
 
 Printable diagrams live under `docs/diagrams/` and the full breakdown is in `docs/architecture.md`.
+
+![Data flow](docs/diagrams/data_flow.png)
 
 ## Quick Start
 
@@ -51,6 +59,27 @@ make flink-submit
 | Flink UI | http://localhost:8081 | Job metrics, checkpoint history, task throughput. |
 | Prometheus | http://localhost:9090 | Raw metrics (Flink, RabbitMQ, TimescaleDB exporters). |
 | TimescaleDB | change via `.env` | Run SQL, inspect hypertables (`raw_telemetry`, `aggregated_metrics`, `dlq_records`). |
+
+## Screenshots
+
+The architecture diagram above is committed at `docs/diagrams/system_overview.png`, and the data-flow diagram is at `docs/diagrams/data_flow.png`.
+
+Grafana screenshots are captured from a live stack instead of being committed, so they cannot go stale. Run `make up`, `make flink-build`, `make flink-submit`, then open http://localhost:3000 and capture the Operations, Data Quality, or System Health dashboards.
+
+## Simulation Behaviour
+
+`config/simulator/config.yaml` exposes `simulator.always_daytime` (default `true`). When enabled, the solar clock is wrapped into the 06:00–18:00 window so demos always show daytime production. Set it to `false` for a real day/night cycle: irradiance and pump output fall to zero at night and the system reports `STANDBY`.
+
+## Running the Tests
+
+```bash
+pip install -r simulator/requirements.txt
+pytest simulator/tests
+
+cd flink-jobs/telemetry-processor && mvn test
+```
+
+The same commands run in CI, alongside a Compose smoke job that asserts the TimescaleDB schema.
 
 ## Triggering Failures for Demos
 
