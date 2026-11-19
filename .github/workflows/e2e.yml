@@ -1,0 +1,66 @@
+name: E2E Pipeline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pipeline-e2e:
+    name: End-to-end telemetry flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+          cache: maven
+
+      - name: Build Flink JAR
+        working-directory: flink-jobs/telemetry-processor
+        run: mvn -B package -DskipTests
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Start the stack
+        run: |
+          docker compose --env-file .env up -d --wait \
+            rabbitmq timescaledb flink-jobmanager flink-taskmanager simulator
+
+      - name: Submit the Flink job (detached)
+        run: |
+          docker compose --env-file .env exec -T flink-jobmanager \
+            flink run -d /opt/flink/job-jars/telemetry-processor-1.0.0.jar
+
+      - name: Assert telemetry rows land in TimescaleDB
+        run: |
+          for attempt in $(seq 1 24); do
+            count=$(docker compose --env-file .env exec -T timescaledb \
+              psql -U iot_user -d iot_data -tAc "SELECT count(*) FROM raw_telemetry;")
+            count=${count//[[:space:]]/}
+            if [ "${count:-0}" -gt 0 ]; then
+              echo "raw_telemetry rows after ${attempt} checks: $count"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "No telemetry rows landed after 120s" >&2
+          exit 1
+
+      - name: Show container logs
+        if: always()
+        run: docker compose --env-file .env logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose --env-file .env down -v --remove-orphans
