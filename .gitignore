@@ -49,3 +49,6 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .ruff_cache/
+
+# Local tooling indexes
+.codegraph/

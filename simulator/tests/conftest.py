@@ -64,6 +64,7 @@ def config_yaml_path(tmp_path: Path) -> Path:
 
         simulator:
           telemetry_interval_sec: 2.0
+          always_daytime: true
           failure_injection:
             enabled: true
             rate: 0.1

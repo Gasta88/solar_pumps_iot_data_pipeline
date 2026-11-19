@@ -38,6 +38,19 @@ class TestTelemetryGenerator:
         assert msg.pump.flow_rate_lpm > 0.0
         assert msg.system.status == "OPERATIONAL"
 
+    def test_nighttime_real_cycle_is_standby(
+        self, sample_pump_def: PumpDefinition
+    ) -> None:
+        gen = TelemetryGenerator(sample_pump_def, always_daytime=False)
+        dt = datetime(2024, 6, 15, 22, 0, 0, tzinfo=timezone.utc)
+        msg = gen.generate(dt)
+
+        assert msg.solar_panel.irradiance_w_m2 == 0.0
+        assert msg.solar_panel.power_w == 0.0
+        assert msg.pump.rpm == 0
+        assert msg.pump.flow_rate_lpm == 0.0
+        assert msg.system.status == "STANDBY"
+
     def test_operating_hours_increment(self, sample_pump_def: PumpDefinition) -> None:
         gen = TelemetryGenerator(sample_pump_def)
         dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)

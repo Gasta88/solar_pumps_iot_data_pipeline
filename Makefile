@@ -84,7 +84,7 @@ nuke: clean  ## Full cleanup: volumes, orphan containers, and images
 
 # ---------- Flink Job ----------
 
-.PHONY: flink-build flink-submit 
+.PHONY: flink-build flink-test flink-submit flink-clean
 
 flink-build:  ## Build Flink telemetry-processor JAR (requires Maven + Java 11)
 	cd flink-jobs/telemetry-processor && mvn package -DskipTests
@@ -99,6 +99,6 @@ flink-submit: flink-build  ## Build and submit Flink job to JobManager
 		flink run /opt/flink/job-jars/telemetry-processor-1.0.0.jar
 	@echo "✔ Flink job submitted."
 
-flink-clean: flink-clean ## Clean up JAR file
+flink-clean:  ## Clean up JAR file
 	cd flink-jobs/telemetry-processor && mvn clean -DskipTests
 	@echo "✔ Flink JAR removed at flink-jobs/telemetry-processor/target/"
